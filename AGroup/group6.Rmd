@@ -1,0 +1,285 @@
+---
+---
+---
+
+|                                                        |
+|--------------------------------------------------------|
+| itle: "MÔ HÌNH PHÂN TÍCH & ĐỊNH GIÁ TÀI SẢN TÀI CHÍNH" |
+| uthor: "GROUP 6"                                       |
+| ate: "2023-10-25"                                      |
+| utput:                                                 |
+| html_document:                                         |
+| df_print: paged                                        |
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### NHAP DU LIEU
+
+```{r}
+library(readxl)
+X50_CP_HNX_ff <- read_excel("E:/Mo hinh dinh gia/AGroup/50-CP-HNX_ff.xlsx")
+X50_CP_HNX <- read_excel("E:/Mo hinh dinh gia/AGroup/50-CP-HNX.xlsx")
+Empty <- read_excel("E:/Mo hinh dinh gia/AGroup/Empty.xlsx")
+head(X50_CP_HNX_ff)
+#attach(X50_CP_HNX_ff)
+
+```
+
+### 1.Tính chuỗi lợi suất
+
+```{r}
+for(j in 2:ncol(X50_CP_HNX)) {
+  for(i in 2:nrow(X50_CP_HNX)) {
+    a=X50_CP_HNX[[i,j]]
+    b=X50_CP_HNX[[i-1,j]]
+    Empty[[i,j]]=log(a/b)
+  }
+}
+
+stock=Empty[-1,]
+attach(stock)
+
+```
+
+### 2.Mô hình Fama-French 3 nhân tố:
+
+$r_i=alpha_i+beta1_i*(r_M-r_f)+beta2_i*SMB+beta3_i*HML+e_i$
+
+$r_i$ : tỷ suất sinh lợi tài sản i
+
+$r_M$ : tỷ suất sinh lợi thị trường
+
+$r_f$ : lợi suất phi rủi ro
+
+$SMB$ : nhân tố quy mô vốn hoá(Size Factor)
+
+$HML$ : nhân tố chỉ số giá trị ghi sổ/giá trị thị trường(Book to Market)
+
+$beta1_i;beta2_i;beta3_i$ : được kỳ vọng là dương
+
+-Vấn đề đặt ra bây giờ là khi ứng dụng vào 50 cổ phiếu trên sàn giao dịch chứng khoán Hà Nội, ba nhân tố trong mô hình Fama-French có thật sự giải thích được sự thay đổi tỷ suất sinh lợi cổ phiếu.
+
+-Có hay không những công ty có quy mô nhỏ sẽ cho tỷ suất sinh lợi cao hơn những công ty có quy mô lớn và việc những công ty có tỷ số Book/Market cao sẽ cho tỷ suất sinh lợi cao hơn những công ty có tỷ số này thấp như Fama-French đã phát biểu.
+
+Vấn đề này sẽ được trả lời khi ta tiếp tục thực hiện các bước phân tích sau đây.
+
+### 2.1. Tính toán các nhân tố
+
+```{r}
+library(readxl)
+CS <- read_excel("R/CS.xlsx")
+attach(CS)
+
+```
+
+#### \* Nhân tố quy mô vốn hoá (SMB)
+
+-Tính chỉ số vốn hoá thị trường = khối lượng cổ phiếu đang lưu hành\* giá cuối tháng 6
+
+```{r}
+CSVH<-CS$`Khối lượng CP lưu hành`*CS$`Giá cuối tháng 6`
+CS1<-data.frame(CS,CSVH)
+head(CS1)
+```
+
+-Chia 2 danh mục trong đó danh mục 1 chứa các mã cổ phiếu có chỉ số vốn hoá thị trường lớn hơn median của dãy và danh mục 2 là các mã cổ phiếu còn lại
+
+```{r}
+VHL = c() # tạo vector để lưu các mã chứng khoán
+VHN = c()
+
+for (i in 1:length(CSVH)){
+  if(CSVH[i]>median(CSVH)) {
+    VHL<-c(VHL,i)
+  }
+  else {
+    VHN <-c(VHN,i)
+  }
+}
+
+```
+
+```{r}
+por_Big = c()
+por_Small = c()
+for ( i in VHL){
+  por_Big<-c(por_Big,CS$Stock[i])
+}
+for ( i in VHN){
+  por_Small<-c(por_Small,CS$Stock[i])
+}
+cbind(por_Big,por_Small)
+
+```
+
+-Tính lợi suất của 2 danh mục sau đó $SMB = r_S- r_B$
+
+```{r}
+dataB = data.frame(NRC,BCC,TIG,HUT,LAS,EVS,BVS,IDJ,SHS,API,TNG,VNR,MBS,TAR,CSC,PVS,NTP,VCS,THD,VC3,VFS,DDG,KSF,L14,SCG)
+#head(dataB)
+r_Big<-rowMeans(dataB)
+dataS = data.frame(TTH,FID,SRA,DL1,ITQ,CTC,AMV,LIG,HAD,MST,HOM,DXP,AAV,NSH,IVS,CMS,VGS,VC7,BNA,PVB,APS,PVC,MAC,IDV,TVD)
+r_Small<-rowMeans(dataS)
+SMB=r_Small-r_Big
+head(SMB)
+```
+
+#### \* Nhân tố giá trị sổ sách/giá trị thị trường
+
+-Tính chỉ số giá trị sổ sách/giá trị thị trường (Book to Market)
+
+```{r}
+# Giá trị sổ sách =(VCSH-Tài sản vô hình)/Khối lượng CP lưu hành
+Book = (CS$`Vốn CSH`-CS$`Tài sản vô hình`)/CS$`Khối lượng CP lưu hành`
+BtM =Book/CS$Market
+head(BtM)
+```
+
+-Xếp hạng chỉ số Book to Market
+
+```{r}
+BtM <- BtM[order(BtM,decreasing = TRUE)]
+BtM
+```
+
+-Chia 2 danh mục với danh mục High là 1/3 số mã CK có chỉ số BtM cao nhất và danh mục Low là 1/3 số mã CK có chỉ số BtM thấp nhất
+
+```{r}
+por_high = c()
+por_low = c()
+for ( i in 1:length(BtM)){
+  if ( i <18){
+    por_high= c(por_high,CS$Stock[i])
+  }
+  if(i>33){
+    por_low = c(por_low,CS$Stock[i])
+  }
+}
+cbind(por_high,por_low)
+```
+
+-Tính lợi suất 2 danh mục này sau đó tính : $HML = r_H - r_L$
+
+```{r}
+dataH = data.frame(TTH,FID,SRA,DL1,ITQ,CTC,AMV,LIG,HAD,MST,NRC,HOM,DXP,AAV,NSH,BCC,IVS)
+dataL = data.frame(VNR,MBS,TAR,MAC,CSC,IDV,PVS,HUT,NTP,VCS,THD,VC3,VFS,DDG,KSF,L14,SCG)
+r_High = rowMeans(dataH)
+r_Low = rowMeans(dataL)
+HML=r_High-r_Low
+head(HML)
+```
+
+#### \* Nhân tố thị trường( Market Factor )
+
+```{r}
+Market_Factor = X50_CP_HNX_ff$`r_HNX-Index`- X50_CP_HNX_ff$r_f
+head(Market_Factor)
+```
+
+```{r}
+X50_CP_HNX_ff<-data.frame(X50_CP_HNX_ff,Market_Factor,SMB,HML)
+head(X50_CP_HNX_ff)
+```
+
+#### 2.2. Hồi quy mô hình
+
+#### Ma trận tương quan giữa các nhân tố:
+
+```{r}
+cor(X50_CP_HNX_ff[,4:6])
+```
+
+Ta thấy giá trị tuyệt đối của hệ số tương quan giữa các nhân tố vào khoảng [0.2, 0.8]. Trong đó giữa 2 nhân tố SMB và HML có mối tương quan cao nhất. Theo các giả thiết của mô hình đa nhân tố thì các nhân tố không có tương quan với nhau. Vậy liệu trên thị trường chứng khoán HNX các biến độc lập có thể cùng một lúc giải thích sự thay đổi của biến phụ thuộc (tỷ suất sinh lợi cổ phiếu) hay không?
+
+```{r}
+library(latex2exp)
+library(zoo)
+library(lmtest)
+library(stargazer)
+library(ggplot2)
+datanew<-data.frame(X50_CP_HNX_ff,stock[,-1])
+head(datanew)
+```
+
+#### Dùng vòng lặp for để ước lượng mô hình với từng biến phụ thuộc
+
+```{r}
+coef_table=data.frame() # tạo 1 bảng dữ liệu để lưu trữ các hệ số ước lượng
+dependent=c(datanew[,7:56])
+for (return in dependent){
+  model <- lm(return~Market_Factor+SMB+HML,data = datanew)
+  #print(summary(model))
+  #stargazer(model,type = "text")
+  coef_values<-coef(model)
+  coef_table<-rbind(coef_table,coef_values)
+  
+}
+colnames(coef_table)=c("alpha_i","beta_MarketFactor","beta_SMB","beta_HML")
+# Sử dụng tập dữ liệu "coef_table" để ước lượng phần bù rủi ro nhân tố và các phần sau
+head(coef_table)
+
+```
+
+```{r}
+# Nhập dữ liệu 4 danh mục đại diện
+por <- read_excel("E:/Mo hinh dinh gia/AGroup/por.xlsx")
+datapor=data.frame(X50_CP_HNX_ff,por[5:8])
+head(datapor)
+```
+
+#### 2.3. Hồi quy mô hình với các biến phụ thuộc lần lượt lợi suất của 4 danh mục đại diện (SL;SH;BL;BH)
+
+Vì khó để đánh giá tác động của các nhân tố tới từng tài sản nên ta sẽ thông qua 4 danh mục đại diện để phân tích
+
+```{r}
+reg11=lm(data = datapor,r_porBH~Market_Factor)
+reg21=lm(data = datapor,r_porBL~Market_Factor)
+reg31=lm(data = datapor,r_porSH~Market_Factor)
+reg41=lm(data = datapor,r_porSL~Market_Factor)
+stargazer(reg11,reg21,reg31,reg41,type = "text")
+```
+
+```{r}
+reg12=lm(data = datapor,r_porBH~Market_Factor+SMB)
+reg22=lm(data = datapor,r_porBL~Market_Factor+SMB)
+reg32=lm(data = datapor,r_porSH~Market_Factor+SMB)
+reg42=lm(data = datapor,r_porSL~Market_Factor+SMB)
+stargazer(reg12,reg22,reg32,reg42,type = "text")
+```
+
+```{r}
+reg13=lm(data = datapor,r_porBH~Market_Factor+HML)
+reg23=lm(data = datapor,r_porBL~Market_Factor+HML)
+reg33=lm(data = datapor,r_porSH~Market_Factor+HML)
+reg43=lm(data = datapor,r_porSL~Market_Factor+HML)
+stargazer(reg13,reg23,reg33,reg43,type = "text")
+```
+
+```{r}
+reg14=lm(data = datapor,r_porBH~SMB+HML)
+reg24=lm(data = datapor,r_porBL~SMB+HML)
+reg34=lm(data = datapor,r_porSH~SMB+HML)
+reg44=lm(data = datapor,r_porSL~SMB+HML)
+stargazer(reg14,reg24,reg34,reg44,type = "text")
+```
+
+```{r}
+reg1=lm(data = datapor,r_porBH~Market_Factor+SMB+HML)
+reg2=lm(data = datapor,r_porBL~Market_Factor+SMB+HML)
+reg3=lm(data = datapor,r_porSH~Market_Factor+SMB+HML)
+reg4=lm(data = datapor,r_porSL~Market_Factor+SMB+HML)
+
+stargazer(reg1,reg2,reg3,reg4,type = "text")
+```
+
+![](images/Screenshot%202023-10-30%20181645.png){width="553"}
+
+Kết quả tại bảng cho ta thấy sự tác động của từng nhân tố giải thích lên tỷ suất sinh lợi như sau:
+
+\- Nhóm ba yếu tố bao gồm yếu tố thị trường, yếu tố quy mô và yếu tố B/M (yếu tố giá trị) có ảnh hưởng đến tỷ suất sinh lợi cổ phiếu tại HNX. Kết quả chạy hồi quy mô hình gồm ba yếu tố trên cho giá trị R2 hiệu chỉnh trung bình 0,715. Đây là giá trị R2 hiệu chỉnh cao nhất khi so sánh với mô hình thiếu vắng một trong các yếu tố này. Các hệ số hồi quy của mô hình gồm ba biến gần như là có ý nghĩa ở mức 5%. Như vậy, ta cũng có thể nói rằng tỷ suất sinh lợi của cổ phiếu tại HNX ngoài việc chịu tác động khách quan của nhân tố thị trường còn bị tác động bởi những yếu tố thuộc về đặc tính của doanh nghiệp niêm yết như quy mô và tỷ số B/M. 
+
+-Trong ba yếu tố tác động đến tỷ suất sinh lợi thì yếu tố thị trường giữ vai trò quan trọng hơn cả. Điều này được thể hiện qua việc kết quả chạy hồi quy mô hình chỉ gồm một biến thị trường cho giá trị R2 hiệu chỉnh là 0.534 cao hơn so với 0.388 là giá trị R2 hiệu chỉnh của mô hình hồi quy gồm hai biến SMB (thể hiện quy mô) và HML (thể hiện tỷ số B/M). Mặt khác, tất cả các hệ số hồi quy của biến thị trường cho bốn danh mục đầu tư đều có ý nghĩa về mặt thống kê ở mức 05%
+
+-Khi kết hợp biến thị trường và biến SMB hoặc biến HML đã làm tăng đáng kể giá trị R2 hiệu chỉnh so với khi chỉ có một biến thị trường. Điều này được thể hiện qua việc giá trị R2 hiệu chỉnh từ 0.534 cho một biến thị trường đã tăng lên thành 0.623 và 0.655 cho trường hợp kết hợp cả hai biến thị trường và biến SMB hoặc HML. Như vậy, ta cũng có thể thấy rằng yếu tố quy mô và yếu tố giá trị đã giữ một vai trò không nhỏ trong việc giải thích sự thay đổi tỷ suất sinh lợi tại sàn HNX trong khoảng thời gian nghiên cứu từ tháng 1/2022 - 12/2022.

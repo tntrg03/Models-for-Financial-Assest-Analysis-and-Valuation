@@ -1,0 +1,279 @@
+---
+title: "FF5F"
+author: "GR6"
+date: "2023-10-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readxl)
+CS <- read_excel("E:/Mo hinh dinh gia/AGroup/R/CS.xlsx")
+attach(CS)
+head(CS)
+```
+
+#### Tính chỉ số vốn hoá thị trường = khối lượng cổ phiếu đang lưu hành\* giá cuối tháng 6
+
+```{r}
+CSVH<-CS$`Khối lượng CP lưu hành`*CS$`Giá cuối tháng 6`
+CS1<-data.frame(CS,CSVH)
+head(CS1)
+library(dplyr)
+#CS1<-arrange(CS1,desc(CSVH))
+#View(CS1)
+```
+
+#### Chia 2 danh mục B và S
+
+```{r}
+B = c()
+S = c()
+
+for (i in 1:length(CSVH)){
+  if(CSVH[i]>median(CSVH)) {
+    B<-c(B,i)
+  }
+  else {
+    S <-c(S,i)
+  }
+}
+
+```
+
+
+```{r}
+por_Big = c()
+por_Small = c()
+for ( i in VHL){
+  por_Big<-c(por_Big,CS1$Stock[i])
+}
+for ( i in VHN){
+  por_Small<-c(por_Small,CS1$Stock[i])
+}
+cbind(por_Big,por_Small)
+
+```
+
+
+
+#### Tính chỉ số giá trị sổ sách/giá trị thị trường (Book to Market)
+
+```{r}
+Book = (CS$`Vốn CSH`-CS$`Tài sản vô hình`)/CS$`Khối lượng CP lưu hành`
+BtM =Book/CS$Market
+median(BtM)
+```
+
+
+#### Chia 2 danh mục H và L
+
+```{r}
+H = c()
+L = c()
+
+for (i in 1:length(BtM)){
+  if(BtM[i]>median(BtM)) {
+    H<-c(H,i)
+  }
+  else {
+    L <-c(L,i)
+  }
+}
+```
+
+```{r}
+por_high = c()
+por_low = c()
+for ( i in H){
+  por_high<-c(por_high,CS$Stock[i])
+}
+for ( i in L){
+  por_low<-c(por_low,CS$Stock[i])
+}
+cbind(por_high,por_low)
+```
+```{r}
+por_SH=intersect(por_Small,por_high)
+por_SL=intersect(por_Small,por_low)
+por_BH=intersect(por_Big,por_high)
+por_BL=intersect(por_Big,por_low)
+```
+
+
+#### Tính HML
+
+```{r}
+dataSH = data.frame(TTH,FID,SRA,DL1,ITQ,CTC,AMV,LIG,HAD,MST,HOM,DXP,AAV,NSH,IVS,CMS,TVD,VGS,VC7,BNA,PVB)
+dataSL = data.frame(APS,PVC,MAC,IDV)
+dataBH = data.frame(NRC,BCC,TIG,LAS)
+dataBL = data.frame(EVS,BVS,IDJ,SHS,API,TNG,VNR,MBS,TAR,CSC,PVS,HUT,NTP,VCS,THD,VC3,VFS,DDG,KSF,L14,SCG)
+
+r_SH = rowMeans(dataSH)
+r_SL = rowMeans(dataSL)
+r_BH = rowMeans(dataBH)
+r_BL = rowMeans(dataBL)
+HML=(r_SH+r_BH)/2-(r_SL-r_BL)/2
+head(HML)
+```
+
+$RMW_i$ (Robust minus weak): Là chênh lệch giữa tỷ suất sinh lợi của danh mục có lợi nhuận cao và tỷ suất sinh lợi của danh mục có lợi nhuận thấp.
+
+Tính $ROA = Lợi\ nhuận\ sau\ thuế/ Tổng\ tài\ sản$
+
+```{r}
+ROA = CS$`Lợi nhuận sau thuế`/CS$`Tổng tài sản năm 2022`
+#ROA <- ROA[order(ROA,decreasing = TRUE)]
+median(ROA)
+```
+```{r}
+R = c()
+W = c()
+
+for (i in 1:length(ROA)){
+  if(ROA[i]>median(ROA)) {
+    R<-c(R,i)
+  }
+  else {
+    W <-c(W,i)
+  }
+}
+
+```
+
+```{r}
+por_robust = c()
+por_weak = c()
+for ( i in R){
+  por_robust<-c(por_robust,CS$Stock[i])
+}
+for ( i in W){
+  por_weak<-c(por_weak,CS$Stock[i])
+}
+cbind(por_robust,por_weak)
+```
+
+```{r}
+por_SR=intersect(por_Small,por_robust)
+por_SW=intersect(por_Small,por_weak)
+por_BR=intersect(por_Big,por_robust)
+por_BW=intersect(por_Big,por_weak)
+```
+
+```{r}
+dataSR = data.frame(HAD,MST,DXP,TVD,VGS,BNA,APS,MAC,IDV)
+dataSW = data.frame(TTH,FID,SRA,DL1,ITQ,CTC,AMV,LIG,HOM,AAV,NSH,IVS,CMS,VC7,PVB,PVC)
+dataBW = data.frame(BCC,EVS,SHS,TAR,HUT,VC3,DDG,SCG)
+dataBR = data.frame(TIG,LAS,EVS,BVS,IDJ,API,TNG,VNR,MBS,CSC,PVS,NTP,VCS,THD,VFS,KSF,L14)
+
+r_SR = rowMeans(dataSR)
+r_SW = rowMeans(dataSW)
+r_BR = rowMeans(dataBR)
+r_BW = rowMeans(dataBW)
+RMW=(r_SR+r_BR)/2-(r_SW+r_BW)/2
+head(RMW)
+```
+
+$CMA_i$ (Conservative minus Aggressive): Là chênh lệch giữa tỷ suất lợi tức của danh mục các công ty có xu hướng đầu tư ít và tỷ suất lợi tức của danh mục các công ty có xu hướng đầu tư nhiều
+
+$Inv\ = (Tổng\ tài\ sản_t - Tổng\ tài\ sản_{t-1})/Tổng\ tài\ sản_{t-1}$
+```{r}
+Inv = (CS$`Tổng tài sản năm 2022`-CS$`Tổng tài sản năm 2021`)/CS$`Tổng tài sản năm 2021`
+#Inv <- Inv[order(Inv,decreasing = TRUE)]
+median(Inv)
+```
+
+```{r}
+C = c()
+A = c()
+
+for (i in 1:length(Inv)){
+  if(Inv[i]>median(Inv)) {
+    C<-c(C,i)
+  }
+  else {
+    A <-c(A,i)
+  }
+}
+```
+
+
+```{r}
+por_cons = c()
+por_aggr = c()
+for ( i in C){
+  por_cons<-c(por_cons,CS$Stock[i])
+}
+for ( i in A){
+  por_aggr<-c(por_aggr,CS$Stock[i])
+}
+cbind(por_cons,por_aggr)
+```
+```{r}
+por_SC=intersect(por_Small,por_cons)
+por_SA=intersect(por_Small,por_aggr)
+por_BC=intersect(por_Big,por_cons)
+por_BA=intersect(por_Big,por_aggr)
+```
+
+
+```{r}
+dataSC = data.frame(TTH,DL1,ITQ,AMV,LIG,HAD,HOM,DXP,AAV,CMS,TVD,VC7,BNA,PVC,IDV)
+dataSA = data.frame(FID,SRA,CTC,MST,NSH,IVS,VGS,PVB,APS,MAC)
+dataBC = data.frame(NRC,TIG,IDJ,TNG,TAR,HUT,VC3,DDG,KSF,SCG)
+dataBA = data.frame(BCC,LAS,EVS,BVS,SHS,API,VNR,MBS,CSC,PVS,NTP,VCS,THD,VFS,L14)
+
+r_SC = rowMeans(dataSC)
+r_SA = rowMeans(dataSA)
+r_BC = rowMeans(dataBC)
+r_BA = rowMeans(dataBA)
+CMA=(r_SC+r_BC)/2-(r_SA-r_BA)/2
+head(CMA)
+```
+
+
+Tính SMB
+```{r}
+SMB = (r_SH+r_SL+r_SR+r_SW+r_SC+r_SA)/6-(r_BH+r_BL+r_BR+r_BW+r_BC+r_BA)/6
+head(SMB)
+```
+
+```{r}
+MF=X50_CP_HNX_ff$`r_HNX-Index`- X50_CP_HNX_ff$r_f
+FF5F=data.frame(X50_CP_HNX_ff,MF,SMB,HML,RMW,CMA,r_SH,r_SL,r_SR,r_SW,r_SC,r_SA,r_BH,r_BL,r_BR,r_BW,r_BC,r_BA)
+View(FF5F)
+```
+
+```{r}
+coef_tab=data.frame() # tạo 1 bảng dữ liệu để lưu trữ các hệ số ước lượng
+dependent=c(FF5F[,9:20])
+for (return in dependent){
+  model <- lm(return-r_f~MF+SMB+HML+RMW+CMA,data = FF5F)
+  #print(summary(model))
+  #stargazer(model,type = "text")
+  coef_vl<-coef(model)
+  coef_tab<-rbind(coef_tab,coef_vl)
+  
+}
+colnames(coef_tab)=c("alpha_i","beta_MaF","beta_SMB","beta_HML","beta_RMA","beta_CMA")
+coef_tab
+```
+
+```{r}
+colMeans(FF5F[,4:8])
+```
+-UL ptrinh APT=> các hệ số lamda
+=> phân tích có đúng với kỳ vọng về dấu của 5 nhân tố này
+-Kiểm định hệ số chặn, hệ số các biến trong mô hình, sự phù hợp của mô hình
+
+
+
+
+
+
+
+
+

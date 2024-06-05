@@ -1,0 +1,268 @@
+---
+title: "huhu"
+author: "group6"
+date: "2023-11-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# III. XỬ LÝ DỮ LIỆU
+
+## 1. Tính chuỗi lợi suất
+
+```{r}
+library(readxl)
+X50_CP_HNX=read_excel("E:/Mo hinh dinh gia/AGroup/50-CP-HNX.xlsx")
+returns = data.frame(X50_CP_HNX$`Ngày giao dịch`, matrix(rep(0,249*50), nrow = 249, ncol = 50))
+colnames(returns) = colnames(X50_CP_HNX)
+
+for(j in 2:ncol(X50_CP_HNX)) {
+  for(i in 2:nrow(X50_CP_HNX)) {
+    a = X50_CP_HNX[[i,j]]
+    b = X50_CP_HNX[[i-1,j]]
+    returns[[i,j]] = log(a/b)
+  }
+}
+
+returns = returns[-1,]
+head(returns[,1:5])
+```
+
+-   Từ chuỗi giá đóng cửa ban đầu của 50 mã cổ phiếu trên sàn HNX, ta tính chuỗi lợi suất theo công thức: $$ r_t = ln(\frac{S_t}{S_{t-1}}) $$
+-   Vì $r_t$ khá nhỏ nên sẽ xấp xỉ công thức trên.
+
+## 2. Tính chỉ số vốn hóa thị trường (SMB)
+
+Tính quy mô vốn hóa của mỗi cổ phiếu (Stock - Size): Giá cuối tháng 6 $\times$ Số cổ phiếu lưu hành
+
+```{r}
+CS=read_excel("E:/Mo hinh dinh gia/AGroup/R/CS.xlsx")
+head(CS[,1:6])
+
+CSVH<-CS$`Khối lượng CP lưu hành`*CS$`Giá cuối tháng 6`
+CS1<-data.frame(CS[,1:6],CSVH)
+head(CS1)
+```
+
+Chia 50 mã cổ phiếu thành hai nhóm, nhóm "Lớn" (Big Size) sẽ chứa các mã cổ phiếu có chỉ số vốn hoá thị trường lớn hơn trung vị (median) của dãy và nhóm "Nhỏ" (Small Size) chứa các mã cổ phiếu có chỉ số vốn hóa thị trường nhỏ hơn trung vị của dãy.
+
+```{r}
+VHL = c() # tạo vector để lưu các mã chứng khoán
+VHN = c()
+
+for (i in 1:length(CSVH)){
+  if(CSVH[i]>median(CSVH)) {
+    VHL<-c(VHL,i)
+  }
+  if (CSVH[i]<median(CSVH)) {
+    VHN <-c(VHN,i)
+  }
+}
+```
+
+Tính chỉ số của hai nhóm "Lớn", "Nhỏ" và lợi suất của các chỉ số này: $r_{big}$, $r_{small}$
+
+```{r}
+por_Big = c()
+por_Small = c()
+for ( i in VHL){
+  por_Big<-c(por_Big,CS$Stock[i])
+}
+for ( i in VHN){
+  por_Small<-c(por_Small,CS$Stock[i])
+}
+cbind(por_Big,por_Small)
+```
+
+Tính lợi suất của hai nhóm sau đó tính $SMB = r_{small} - r_{big}$
+
+```{r}
+attach(returns)
+dataB = data.frame(NRC,BCC,TIG,HUT,LAS,EVS,BVS,IDJ,SHS,API,TNG,VNR,MBS,TAR,CSC,PVS,NTP,VCS,THD,VC3,VFS,DDG,KSF,L14,SCG)
+#head(dataB)
+r_Big<-rowMeans(dataB)
+dataS = data.frame(TTH,FID,SRA,DL1,ITQ,CTC,AMV,LIG,HAD,MST,HOM,DXP,AAV,NSH,IVS,CMS,VGS,VC7,BNA,PVB,APS,PVC,MAC,IDV,TVD)
+r_Small<-rowMeans(dataS)
+SMB=r_Small-r_Big
+head(SMB)
+```
+
+## 3. Tính chỉ số giá trị sổ sách/giá trị thị trường (Book to Market)
+
+$Giá \ trị \ sổ \ sách = \frac{Vốn \ chủ \ sở \ hữu - Tài \ sản \ vô \ hình}{Khối \ lượng \ cổ \ phiếu \ lưu \ hành}$
+
+```{r}
+Book = (CS$`Vốn CSH`-CS$`Tài sản vô hình`)/CS$`Khối lượng CP lưu hành`
+BtM =Book/CS$Market
+head(BtM)
+```
+
+Sắp xếp toàn bộ các công ty có mặt trên thị trường theo thứ tự từ cao xuống thấp của chỉ số Book - to - Market.
+
+```{r}
+BtM <- BtM[order(BtM,decreasing = TRUE)]
+BtM
+```
+
+Chia thành hai nhóm, $\frac13$ số công ty ở tốp đầu gọi là nhóm "Cao" (High - Ratio), $\frac13$ số công ty ở nhóm cuối gọi là nhóm "Thấp" (Low - Ratio)
+
+```{r}
+por_high = c()
+por_low = c()
+for ( i in 1:length(BtM)){
+  if ( i <18){
+    por_high= c(por_high,CS$Stock[i])
+  }
+  if(i>33){
+    por_low = c(por_low,CS$Stock[i])
+  }
+}
+cbind(por_high,por_low)
+```
+
+-   Tính chỉ số thị trường của từng nhóm, sau đó tính lợi suất của các chỉ số: $r_{High}$, $r_{Low}$
+-   Tính $HML = r_{High} - r_{Low}$
+
+```{r}
+dataH = data.frame(TTH,FID,SRA,DL1,ITQ,CTC,AMV,LIG,HAD,MST,NRC,HOM,DXP,AAV,NSH,BCC,IVS)
+dataL = data.frame(VNR,MBS,TAR,MAC,CSC,IDV,PVS,HUT,NTP,VCS,THD,VC3,VFS,DDG,KSF,L14,SCG)
+r_High = rowMeans(dataH)
+r_Low = rowMeans(dataL)
+HML=r_High-r_Low
+head(HML)
+```
+
+## 4. Nhân tố thị trường (Market Factor)
+
+Nhân tố thị trường tính bằng: $r_{MarketIndex} - r_{f}$
+
+```{r}
+X50_CP_HNX_ff=read_excel("E:/Mo hinh dinh gia/AGroup/50-CP-HNX_ff.xlsx")
+
+Market_Factor = X50_CP_HNX_ff$`r_HNX-Index`- X50_CP_HNX_ff$r_f
+head(Market_Factor)
+```
+
+## Tổng hợp các nhân tố
+
+```{r}
+X50_CP_HNX_ff<-data.frame(X50_CP_HNX_ff,Market_Factor,SMB,HML)
+head(X50_CP_HNX_ff)
+```
+
+# IV. TRỰC QUAN HÓA DỮ LIỆU
+
+## 1. Vẽ đồ thị 50 chuỗi lợi suất
+
+```{r}
+time=seq(1,248,length=248)
+
+for(j in 2:ncol(returns)) {
+  if (j==2) {
+    plot(time,returns[,j],type="l",main="Đồ thị chuỗi lợi suất của 50 mã cổ phiếu trên sàn HNX",
+         xlab="",ylab="Lợi suất")
+  } else {
+    lines(time,returns[,j],type="l",col=j)
+  }
+}
+```
+
+Như có thể thấy ở đồ thị trên, chuỗi lợi suất có xu hướng dao động quanh giá trị trung bình bằng $0$ và có biên độ dao động nằm trong khoảng $(-0.1, 0.1)$.
+
+## 2. Vẽ đồ thị 5 chuỗi lợi suất đầu tiên
+
+Để dễ nhìn hơn, ta vẽ chuỗi lợi suất của $5$ mã cổ phiếu đầu tiên
+
+```{r}
+for(j in 2:6) {
+  if (j==2) {
+    plot(time,returns[,j],type="l",main="Đồ thị chuỗi lợi suất của 5 mã cổ phiếu trên sàn HNX",
+         xlab="",ylab="Lợi suất",
+         col=c("midnightblue","lightskyblue","dodgerblue","blue","slateblue"))
+  } else {
+    lines(time,returns[,j],type="l",col=j)
+  }
+}
+```
+
+# V. MÔ HÌNH FAMA - FRENCH BA NHÂN TỐ
+
+## 1. Ước lượng mô hình
+
+Ma trận tương quan giữa các nhân tố
+
+```{r}
+cor(X50_CP_HNX_ff[,4:6])
+```
+
+```{r}
+par(mfrow=c(1,3), pch=20)
+plot(X50_CP_HNX_ff[,4],X50_CP_HNX_ff[,5], xlab = "Market_Factor", ylab = "SMB", col="skyblue")
+plot(X50_CP_HNX_ff[,4],X50_CP_HNX_ff[,6], xlab = "Market_Factor", ylab = "HML", col="salmon")
+plot(X50_CP_HNX_ff[,6],X50_CP_HNX_ff[,5], xlab = "HML", ylab = "SMB", col="seagreen")
+```
+
+Kết quả cho thấy hệ số tương quan giữa các nhân tố nằm trong khoảng $(0.2, 0.8)$. Tuy nhiên, theo các giả thiết của mô hình đa nhân tố thì các nhân tố không có tương quan với nhau. Vậy với dữ liệu của sàn giao dịch chứng khoán Hà Nội, các nhân tố có giải thích được cho tỷ suất sinh lời không?
+
+Ước lượng mô hình với từng biến phụ thuộc:
+
+$$
+r_i = \alpha +\beta_{1i}*MF + \beta_{2i}*SMB+\beta_{3i}*HML + \epsilon_i
+$$
+
+#### Dùng vòng lặp for để ước lượng mô hình với từng biến phụ thuộc
+
+```{r}
+datanew<-data.frame(X50_CP_HNX_ff,returns[,-1]) #Xóa cột ngày giao dịch để dễ tính toán
+coef_table1=data.frame() # tạo 1 bảng dữ liệu để lưu trữ các hệ số ước lượng
+p_value= data.frame()
+dependent=c(datanew[,7:56])
+for (return in dependent){
+  model <- lm(return~Market_Factor+SMB+HML,data = datanew)
+  #print(linearHypothesis(model,c("HML","SMB")))
+  P=summary(model)$coefficients[,4]
+  p_value=rbind(p_value,P)
+  #stargazer(model,type = "text")
+  coef_values<-coef(model)
+  coef_table1<-rbind(coef_table1,coef_values)
+  
+}
+colnames(coef_table1)=c("alpha_i","beta_MarketFactor","beta_SMB","beta_HML")
+# Sử dụng tập dữ liệu "coef_table" để ước lượng phần bù rủi ro nhân tố và các phần sau
+head(coef_table1)
+```
+
+Lọc các giá trị beta không có ý nghĩa thống kê ở mức 5%
+
+```{r}
+X=t(returns)[-1,0]
+data_p=cbind(X,p_value)
+coef_table1=cbind(X,coef_table1)
+colnames(data_p)=c("Intercept","beta_MF","beta_SMB","beta_HML")
+head(coef_table1)
+head(data_p)
+
+```
+
+```{r}
+data_pond=rbind()
+coef_table=rbind()
+for(i in 1:nrow(data_p)) {
+   
+    a = data_p[i,2]
+    b = data_p[i,3]
+    c= data_p[i,4]
+    if (a<0.05 && b< 0.05 && c<0.05){
+      data_pond=rbind(data_pond,data_p[i,])
+      coef_table=rbind(coef_table,coef_table1[i,])
+    }
+}
+data_pond # bảng giá trị p_value
+coef_table # bảng giá trị hệ số ước lượng sau khi lọc
+```
+
+
+
