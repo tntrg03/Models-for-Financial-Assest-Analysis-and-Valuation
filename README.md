@@ -1,7 +1,7 @@
 # Models-for-Financial-Assest-Analysis-and-Valuation
 ## Mô hình Fama-French 3 nhân tố:
 
-r_i = alpha_i + beta1_i * (r_M - r_f) + beta2_i * SMB + beta3_i * HML + e_i
+
 
 'r_i' : tỷ suất sinh lợi tài sản i
 
