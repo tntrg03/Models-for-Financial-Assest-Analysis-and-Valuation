@@ -3,7 +3,7 @@
 
 
 
-'r_i' : tỷ suất sinh lợi tài sản i
+`r_i` : tỷ suất sinh lợi tài sản i
 
 $r_M$ : tỷ suất sinh lợi thị trường
 
